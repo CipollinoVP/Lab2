@@ -13,13 +13,13 @@ double f(double x, double y, double k)
 }
 
 //Точное решение
-double u_analitic(double x, double y)
+double u_analysis(double x, double y)
 {
     return x * (1 - x) * sin(M_PI * y);
 }
 
 //Норма разности векторов
-double norma_vect(int N, double* const& v1, double* const& v2, int th)
+double vector_norm(int N, double* const& v1, double* const& v2, int th)
 {
     double temp = 0.0;
     double norm = 0.0;
@@ -27,7 +27,6 @@ double norma_vect(int N, double* const& v1, double* const& v2, int th)
     for (int i = 0; i < N; ++i)
     {
         temp = v1[i] - v2[i];
-        //#pragma omp critical
         if (fabs(temp) > norm)
             norm = fabs(temp);
     }
@@ -35,7 +34,7 @@ double norma_vect(int N, double* const& v1, double* const& v2, int th)
 }
 
 //Метод Якоби
-void method_Jacobi(int N, double* y, double* yp, double h, double k, double c1, double c2, int th)
+void method_Jacobi(int N, double* y, double* y_prev, double h, double k, double c1, double c2, int th)
 {
 #pragma omp parallel for num_threads(th) if (th > 1)
     for (int i = 0; i < N * N; ++i)
@@ -47,25 +46,25 @@ void method_Jacobi(int N, double* y, double* yp, double h, double k, double c1, 
     do {
         ++iter;
 
-        swap(y, yp);
+        swap(y, y_prev);
 
 #pragma omp parallel for num_threads(th) if (th > 1)
         for (int i = 1; i < N - 1; ++i)
             for (int j = 1; j < N - 1; ++j)
-                y[i * N + j] = c1 * (yp[(i + 1) * N + j] + yp[(i - 1) * N + j] + yp[i * N + j + 1]
-                        + yp[i * N + j - 1]) + c2 * f(i * h, j * h, k);
+                y[i * N + j] = c1 * (y_prev[(i + 1) * N + j] + y_prev[(i - 1) * N + j] + y_prev[i * N + j + 1]
+                        + y_prev[i * N + j - 1]) + c2 * f(i * h, j * h, k);
 
-        norma = norma_vect(N * N, y, yp, th);
+        norma = vector_norm(N * N, y, y_prev, th);
 
     } while (norma > EPS);
 
     cout << "Количество потоков = " << th << endl;
     cout<< "Количество итераций = " << iter << endl;
-    cout << "Норма yp - y  = " << norma << endl;
+    cout << "Норма y_prev - y  = " << norma << endl;
 }
 
 //Метод красно-чёрных итераций
-void red_black_iterations(int N, double* y, double* yp, double h, double k, double c1, double c2, int th)
+void red_black_iterations(int N, double* y, double* y_prev, double h, double k, double c1, double c2, int th)
 {
 #pragma omp parallel for num_threads(th) if (th > 1)
     for (int i = 0; i < N * N; ++i)
@@ -77,12 +76,12 @@ void red_black_iterations(int N, double* y, double* yp, double h, double k, doub
     do {
         ++iter;
 
-        swap(y, yp);
+        swap(y, y_prev);
 
 #pragma omp parallel for num_threads(th) if (th > 1)
         for (int i = 1; i < N - 1; ++i)
             for (int j = i % 2 + 1; j < N - 1; j = j + 2)
-                y[i * N + j] = c1 * (yp[(i + 1) * N + j] + yp[(i - 1) * N + j] + yp[i * N + j + 1] + yp[i * N + j - 1])
+                y[i * N + j] = c1 * (y_prev[(i + 1) * N + j] + y_prev[(i - 1) * N + j] + y_prev[i * N + j + 1] + y_prev[i * N + j - 1])
                         + c2 * f(i * h, j * h, k);
 
 #pragma omp parallel for num_threads(th) if (th > 1)
@@ -91,13 +90,13 @@ void red_black_iterations(int N, double* y, double* yp, double h, double k, doub
                 y[i * N + j] = c1 * (y[(i + 1) * N + j] + y[(i - 1) * N + j] + y[i * N + j + 1] + y[i * N + j - 1]) +
                         c2 * f(i * h, j * h, k);
 
-        norma = norma_vect(N * N, y, yp, th);
+        norma = vector_norm(N * N, y, y_prev, th);
 
     } while (norma > EPS);
 
     cout << "Количество потоков = " << th << endl;
     cout << "Количество итераций = " << iter << endl;
-    cout << "Норма yp - y  = " << norma << endl;
+    cout << "Норма y_prev - y  = " << norma << endl;
 }
 
 int main()
@@ -120,53 +119,53 @@ int main()
     int th = 8; //Количество потоков
 
     auto* y = new double[N * N]; //Численное решение в узле i, j
-    auto* yp = new double[N * N]; //Решение на следующем слое
+    auto* y_prev = new double[N * N]; //Решение на следующем слое
     auto* u = new double[N * N]; //Точное решение
 
     for (int i = 0; i < N; ++i)
         for (int j = 0; j < N; ++j)
-            u[i * N + j] = u_analitic(i * h, j * h);
+            u[i * N + j] = u_analysis(i * h, j * h);
 
     cout << "N = " << N_frag << endl << endl;
     cout << "Метод Якоби" << endl;
     double t1, t2, time1;
     t1 = omp_get_wtime();
-    method_Jacobi(N, y, yp, h, k, c1, c2, 1);
+    method_Jacobi(N, y, y_prev, h, k, c1, c2, 1);
     t2 = omp_get_wtime();
     time1 = (double)(t2 - t1);
-    cout << "Норма u - y = " << norma_vect(N * N, y, u, th) << endl;
+    cout << "Норма u - y = " << vector_norm(N * N, y, u, th) << endl;
     cout << "Время выполнения  = " << time1 << " с" << endl << endl;
 
     cout << "Метод красно-черных итераций" << endl;
     double t3, t4, time2;
     t3 = omp_get_wtime();
-    red_black_iterations(N, y, yp, h, k, c1, c2, 1);
+    red_black_iterations(N, y, y_prev, h, k, c1, c2, 1);
     t4 = omp_get_wtime();
     time2 = (double)(t4 - t3);
-    cout << "Норма u - y = " << norma_vect(N * N, y, u, th) << endl;
+    cout << "Норма u - y = " << vector_norm(N * N, y, u, th) << endl;
     cout << "Время выполнения  = " << time2 << " с" << endl << endl;
     cout << "Метод Якоби параллельный" << endl;
     double t5, t6, time3;
     t5 = omp_get_wtime();
-    method_Jacobi(N, y, yp, h, k, c1, c2, 18);
+    method_Jacobi(N, y, y_prev, h, k, c1, c2, 18);
     t6 = omp_get_wtime();
     time3 = (double)(t6 - t5);
-    cout << "Норма u - y = " << norma_vect(N * N, y, u, th) << endl;
+    cout << "Норма u - y = " << vector_norm(N * N, y, u, th) << endl;
     cout << "Время выполнения  = " << time3 << " с" << endl << endl;
 
     cout << "Метод красно-черных итераций параллельный" << endl;
     double t7, t8, time4;
     t7 = omp_get_wtime();
-    red_black_iterations(N, y, yp, h, k, c1, c2, 18);
+    red_black_iterations(N, y, y_prev, h, k, c1, c2, 18);
     t8 = omp_get_wtime();
     time4 = (double)(t8 - t7);
-    cout << "Норма u - y = " << norma_vect(N * N, y, u, th) << endl;
+    cout << "Норма u - y = " << vector_norm(N * N, y, u, th) << endl;
     cout << "Время выполнения  = " << time4 << " с" << endl << endl;
 
     cout << "Ускорение Метод Якоби/Метод Якоби параллельный = " << (double)time1 / (double)time3 << endl;
     cout << "Ускорение Метод красно - черных итераций/Метод красно-черных итераций параллельный = " << (double)time2 / (double)time4 << endl;
     delete[] y;
-    delete[] yp;
+    delete[] y_prev;
     delete[] u;
     return 0;
 }
