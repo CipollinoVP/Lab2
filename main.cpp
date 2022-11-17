@@ -117,7 +117,7 @@ int main()
     double c1, c2;
     c1 = 1.0 / (4.0 + h * h * k * k);
     c2 = h * h * c1;
-    double th; //Количество потоков
+    int th = 8; //Количество потоков
 
     auto* y = new double[N * N]; //Численное решение в узле i, j
     auto* yp = new double[N * N]; //Решение на следующем слое
