@@ -4,19 +4,18 @@
 
 using namespace std;
 
-const double PI = 3.141592653589793238;
 const double EPS = 1e-6;
 
 //Правая часть
 double f(double x, double y, double k)
 {
-    return 2.0 * sin(PI * y) + k * k * (1.0 - x) * x * sin(PI * y) + PI * PI * (1.0 - x) * x * sin(PI * y);
+    return 2.0 * sin(M_PI * y) + k * k * (1.0 - x) * x * sin(M_PI * y) + M_PI * M_PI * (1.0 - x) * x * sin(M_PI * y);
 }
 
 //Точное решение
 double u_analitic(double x, double y)
 {
-    return x * (1 - x) * sin(PI * y);
+    return x * (1 - x) * sin(M_PI * y);
 }
 
 //Норма разности векторов
