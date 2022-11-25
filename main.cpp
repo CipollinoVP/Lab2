@@ -108,7 +108,7 @@ int main()
     double y_l = 0.0;
     double y_r = 1.0;
 
-    int N_frag = 4000; //Количество разбиений
+    int N_frag = 8000; //Количество разбиений
     int N = N_frag + 1; //Количество узлов
     double h = (x_r - x_l) / N_frag; //Шаг
     double k;
